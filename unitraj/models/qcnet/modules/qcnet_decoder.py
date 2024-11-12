@@ -23,13 +23,13 @@ from torch_geometric.data import Batch
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import dense_to_sparse
 
-from layers import AttentionLayer
-from layers import FourierEmbedding
-from layers import MLPLayer
-from utils import angle_between_2d_vectors
-from utils import bipartite_dense_to_sparse
-from utils import weight_init
-from utils import wrap_angle
+from unitraj.models.qcnet.layers import AttentionLayer
+from unitraj.models.qcnet.layers import FourierEmbedding
+from unitraj.models.qcnet.layers import MLPLayer
+from unitraj.models.qcnet.utils import angle_between_2d_vectors
+from unitraj.models.qcnet.utils import bipartite_dense_to_sparse
+from unitraj.models.qcnet.utils import weight_init
+from unitraj.models.qcnet.utils import wrap_angle
 
 
 class QCNetDecoder(nn.Module):
