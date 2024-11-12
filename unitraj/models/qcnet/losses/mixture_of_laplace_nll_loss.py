@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import segment_csr
 
-from losses.laplace_nll_loss import LaplaceNLLLoss
+from unitraj.models.qcnet.losses.laplace_nll_loss import LaplaceNLLLoss
 
 
 class MixtureOfLaplaceNLLLoss(nn.Module):

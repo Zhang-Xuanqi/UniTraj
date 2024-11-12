@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import segment_csr
 
-from losses.gaussian_nll_loss import GaussianNLLLoss
+from unitraj.models.qcnet.losses.gaussian_nll_loss import GaussianNLLLoss
 
 
 class MixtureOfGaussianNLLLoss(nn.Module):

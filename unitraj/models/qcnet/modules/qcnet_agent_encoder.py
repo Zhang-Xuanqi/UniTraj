@@ -22,11 +22,11 @@ from torch_geometric.data import HeteroData
 from torch_geometric.utils import dense_to_sparse
 from torch_geometric.utils import subgraph
 
-from layers.attention_layer import AttentionLayer
-from layers.fourier_embedding import FourierEmbedding
-from utils import angle_between_2d_vectors
-from utils import weight_init
-from utils import wrap_angle
+from unitraj.models.qcnet.layers.attention_layer import AttentionLayer
+from unitraj.models.qcnet.layers.fourier_embedding import FourierEmbedding
+from unitraj.models.qcnet.utils import angle_between_2d_vectors
+from unitraj.models.qcnet.utils import weight_init
+from unitraj.models.qcnet.utils import wrap_angle
 
 
 class QCNetAgentEncoder(nn.Module):

@@ -16,9 +16,9 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 
-from losses.gaussian_nll_loss import GaussianNLLLoss
-from losses.laplace_nll_loss import LaplaceNLLLoss
-from losses.von_mises_nll_loss import VonMisesNLLLoss
+from unitraj.models.qcnet.losses.gaussian_nll_loss import GaussianNLLLoss
+from unitraj.models.qcnet.losses.laplace_nll_loss import LaplaceNLLLoss
+from unitraj.models.qcnet.losses.von_mises_nll_loss import VonMisesNLLLoss
 
 
 class NLLLoss(nn.Module):

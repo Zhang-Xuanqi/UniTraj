@@ -14,7 +14,7 @@
 import torch
 import torch.nn as nn
 
-from utils import weight_init
+from unitraj.models.qcnet.utils import weight_init
 
 
 class MLPLayer(nn.Module):

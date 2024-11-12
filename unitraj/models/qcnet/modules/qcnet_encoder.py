@@ -17,8 +17,8 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 
-from modules.qcnet_agent_encoder import QCNetAgentEncoder
-from modules.qcnet_map_encoder import QCNetMapEncoder
+from unitraj.models.qcnet.modules.qcnet_agent_encoder import QCNetAgentEncoder
+from unitraj.models.qcnet.modules.qcnet_map_encoder import QCNetMapEncoder
 
 
 class QCNetEncoder(nn.Module):

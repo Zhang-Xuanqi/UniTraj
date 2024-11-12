@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import segment_csr
 
-from losses.von_mises_nll_loss import VonMisesNLLLoss
+from unitraj.models.qcnet.losses.von_mises_nll_loss import VonMisesNLLLoss
 
 
 class MixtureOfVonMisesNLLLoss(nn.Module):
