@@ -48,6 +48,7 @@ class BaseDataset(Dataset):
 
             data_usage_this_dataset = self.config['max_data_num'][cnt]
             data_usage_this_dataset = int(data_usage_this_dataset / self.data_chunk_size)
+            self.starting_frame = self.config['starting_frame'][cnt]
             if self.config['use_cache'] or is_ddp():
                 file_list = self.get_data_list(data_usage_this_dataset)
             else:
@@ -174,6 +175,8 @@ class BaseDataset(Dataset):
         past_length = self.config['past_len']
         future_length = self.config['future_len']
         total_steps = past_length + future_length
+        starting_fame = self.starting_frame
+        ending_fame = starting_fame + total_steps
         trajectory_sample_interval = self.config['trajectory_sample_interval']
         frequency_mask = generate_mask(past_length - 1, total_steps, trajectory_sample_interval)
 
@@ -194,11 +197,11 @@ class BaseDataset(Dataset):
             # type, x,y,z,l,w,h,heading,vx,vy,valid
             all_state = np.concatenate(all_state, axis=-1)
             # all_state = all_state[::sample_inverval]
-            if all_state.shape[0] < total_steps:
-                all_state = np.pad(all_state, ((total_steps - all_state.shape[0], 0), (0, 0)))
-            all_state = all_state[:total_steps]
+            if all_state.shape[0] < ending_fame:
+                all_state = np.pad(all_state, ((ending_fame - all_state.shape[0], 0), (0, 0)))
+            all_state = all_state[starting_fame:ending_fame]
 
-            assert all_state.shape[0] >= total_steps, f'Error: {all_state.shape[0]} < {total_steps}'
+            assert all_state.shape[0] == total_steps, f'Error: {all_state.shape[0]} != {total_steps}'
 
             track_infos['object_id'].append(k)
             track_infos['object_type'].append(object_type[v['type']])
@@ -251,7 +254,10 @@ class BaseDataset(Dataset):
                 polyline = interpolate_polyline(polyline)
                 map_infos['lane'].append(cur_info)
             elif polyline_type_ in [6, 7, 8, 9, 10, 11, 12, 13]:
-                polyline = v['polyline']
+                try:
+                    polyline = v['polyline']
+                except:
+                    polyline = v['polygon']
                 polyline = interpolate_polyline(polyline)
                 map_infos['road_line'].append(cur_info)
             elif polyline_type_ in [15, 16]:
@@ -342,6 +348,8 @@ class BaseDataset(Dataset):
         ret['tracks_to_predict'] = tracks_to_predict
 
         ret['map_center'] = scenario['metadata'].get('map_center', np.zeros(3))[np.newaxis]
+
+        ret['track_length'] = total_steps
         return ret
 
     def process(self, internal_format):
