@@ -16,8 +16,8 @@ from typing import Optional
 import torch
 from torchmetrics import Metric
 
-from metrics.utils import topk
-from metrics.utils import valid_filter
+from unitraj.models.qcnet.metrics.utils import topk
+from unitraj.models.qcnet.metrics.utils import valid_filter
 
 
 class Brier(Metric):

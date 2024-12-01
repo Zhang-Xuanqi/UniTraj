@@ -18,7 +18,7 @@ import torch.nn as nn
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import softmax
 
-from utils import weight_init
+from unitraj.models.qcnet.utils import weight_init
 
 
 class AttentionLayer(MessagePassing):
