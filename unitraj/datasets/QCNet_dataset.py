@@ -127,6 +127,8 @@ def dict_to_heterodata(input_dict):
 
     # map points
     map_polylines = input_dict['map_polylines']
+    polyline_mask = ~np.all(map_polylines == 0, axis=(1, 2))
+    map_polylines = map_polylines[polyline_mask]
     hetero_data['map_point']['num_nodes'] = map_polylines.shape[0] * (map_polylines.shape[1]-1)
     polylines_position = map_polylines[..., 0:3]  # shape: (768, 30, 3)
     polylines_direction = map_polylines[..., 3:6]  # shape: (768, 30, 3)
@@ -139,26 +141,26 @@ def dict_to_heterodata(input_dict):
     hetero_data["map_point"]['side'] = np.zeros_like(map_polylines[:, :-1, 0].reshape(-1), dtype=np.uint8)
     
     # map polygons --> use polyline info instead
-    hetero_data['map_polygon']['num_nodes'] = input_dict["map_polylines"].shape[0]
+    hetero_data['map_polygon']['num_nodes'] = map_polylines.shape[0]
     hetero_data['map_polygon']['position'] = np.mean(
-        input_dict['map_polylines'][..., 0:3], axis=1
+        map_polylines[..., 0:3], axis=1
     )
-    start_points = input_dict['map_polylines'][..., 0:3][:, 0, :2]
-    second_points = input_dict['map_polylines'][..., 0:3][:, 1, :2]
+    start_points = map_polylines[..., 0:3][:, 0, :2]
+    second_points = map_polylines[..., 0:3][:, 1, :2]
     hetero_data['map_polygon']['orientation'] = np.arctan2(
         (second_points - start_points)[:, 1], (second_points - start_points)[:, 0]
     )
     pl_type_one_hot = map_polylines[:, 0, 9:29]
     hetero_data['map_polygon']['type'] = np.argmax(pl_type_one_hot, axis=-1)
-    hetero_data['map_polygon']['is_intersection'] = np.zeros(input_dict["map_polylines"].shape[0], dtype=np.uint8)
+    hetero_data['map_polygon']['is_intersection'] = np.zeros(map_polylines.shape[0], dtype=np.uint8)
     
     # map polylines
     hetero_data['map_center'] = input_dict['map_center']
-    hetero_data['map_polylines']['position'] = input_dict['map_polylines'][..., 0:3]
-    hetero_data['map_polylines']['orientation'] = input_dict['map_polylines'][..., 3:6]
-    hetero_data['map_polylines']['lane_type'] = input_dict['map_polylines'][..., 9:29]
-    hetero_data['map_polylines']['mask'] = input_dict['map_polylines_mask']
-    hetero_data['map_polylines']['center'] = input_dict['map_polylines_center']
+    hetero_data['map_polylines']['position'] = map_polylines[..., 0:3]
+    hetero_data['map_polylines']['orientation'] = map_polylines[..., 3:6]
+    hetero_data['map_polylines']['lane_type'] = map_polylines[..., 9:29]
+    hetero_data['map_polylines']['mask'] = input_dict['map_polylines_mask'][polyline_mask]
+    hetero_data['map_polylines']['center'] = input_dict['map_polylines_center'][polyline_mask]
     
     # pt & pl indexing
     num_polylines, num_points_per_polyline = map_polylines.shape[0], map_polylines.shape[1] - 1
