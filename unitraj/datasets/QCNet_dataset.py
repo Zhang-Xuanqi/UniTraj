@@ -36,8 +36,11 @@ class QCNetDataset(BaseDataset):
             batch_data[key] = {}
             for data in data_list:
                 for sub_key in data[0][key].keys():
-                    if sub_key == 'num_nodes' and sub_key not in batch_data[key]:
-                        batch_data[key][sub_key] = data[0][key][sub_key]
+                    if sub_key == 'num_nodes':
+                            if sub_key not in batch_data[key]:
+                                batch_data[key][sub_key] = data[0][key][sub_key]
+                            else:
+                                batch_data[key][sub_key] += data[0][key][sub_key]
                     else:
                         batch_data[key][sub_key] = torch.cat(
                             [torch.tensor(data[0][key][sub_key]) for data in data_list], dim=0
@@ -52,54 +55,6 @@ class QCNetDataset(BaseDataset):
 
         return batch_data
 
-
-    # def collate_fn(self, data_list):
-    #     batch_data = HeteroData()
-
-    #     batch_data['scenario_id'] = [data[0]['scenario_id'] for data in data_list]
-    #     batch_data['map_center'] = torch.tensor(np.stack([data[0]['map_center'] for data in data_list]), dtype=torch.float32)
-
-    #     # agent
-    #     for data in data_list:
-    #         for key in data[0]['agent'].keys():
-    #             if key == 'num_nodes':
-    #                 if key not in batch_data['agent']:
-    #                     batch_data['agent'][key] = data[0]['agent'][key]
-    #                 else:
-    #                     batch_data['agent'][key] += data[0]['agent'][key]
-    #             else:
-    #                 batch_data['agent'][key] = torch.cat(
-    #                     [torch.tensor(data[0]['agent'][key]) for data in data_list], dim=0
-    #                 )
-
-    #     # map_point
-    #     for data in data_list:
-    #         for key in data[0]['map_point'].keys():
-    #             batch_data['map_point'][key] = torch.tensor(
-    #                 np.stack([data[0]['map_point'][key] for data in data_list])
-    #             )
-
-    #     # map_polygon
-    #     for data in data_list:
-    #         for key in data[0]['map_polygon'].keys():
-    #             batch_data['map_polygon'][key] = torch.tensor(
-    #                 np.stack([data[0]['map_polygon'][key] for data in data_list])
-    #             )
-
-    #     # map_polylines
-    #     for data in data_list:
-    #         for key in data[0]['map_polylines'].keys():
-    #             batch_data['map_polylines'][key] = torch.tensor(
-    #                 np.stack([data[0]['map_polylines'][key] for data in data_list])
-    #             )
-
-    #     # indexing
-    #     for data in data_list:
-    #         batch_data['map_point', 'to', 'map_polygon'].edge_index = torch.tensor(
-    #             np.stack([data[0]['map_point', 'to', 'map_polygon'].edge_index])
-    #         )
-
-    #     return batch_data
 class TargetBuilder(BaseTransform):
 
     def __init__(self,
@@ -175,6 +130,8 @@ def dict_to_heterodata(input_dict):
 
     # map points
     map_polylines = input_dict['map_polylines']
+    polyline_mask = ~np.all(map_polylines == 0, axis=(1, 2))
+    map_polylines = map_polylines[polyline_mask]
     hetero_data['map_point']['num_nodes'] = map_polylines.shape[0] * (map_polylines.shape[1]-1)
     polylines_position = map_polylines[..., 0:3]  # shape: (768, 30, 3)
     polylines_direction = map_polylines[..., 3:6]  # shape: (768, 30, 3)
@@ -187,39 +144,31 @@ def dict_to_heterodata(input_dict):
     hetero_data["map_point"]['side'] = np.zeros_like(map_polylines[:, :-1, 0].reshape(-1), dtype=np.uint8)
     
     # map polygons --> use polyline info instead
-    hetero_data['map_polygon']['num_nodes'] = input_dict["map_polylines"].shape[0]
+    hetero_data['map_polygon']['num_nodes'] = map_polylines.shape[0]
     hetero_data['map_polygon']['position'] = np.mean(
-        input_dict['map_polylines'][..., 0:3], axis=1
+        map_polylines[..., 0:3], axis=1
     )
-    start_points = input_dict['map_polylines'][..., 0:3][:, 0, :2]
-    second_points = input_dict['map_polylines'][..., 0:3][:, 1, :2]
+    start_points = map_polylines[..., 0:3][:, 0, :2]
+    second_points = map_polylines[..., 0:3][:, 1, :2]
     hetero_data['map_polygon']['orientation'] = np.arctan2(
         (second_points - start_points)[:, 1], (second_points - start_points)[:, 0]
     )
     pl_type_one_hot = map_polylines[:, 0, 9:29]
     hetero_data['map_polygon']['type'] = np.argmax(pl_type_one_hot, axis=-1)
-    hetero_data['map_polygon']['is_intersection'] = np.zeros(input_dict["map_polylines"].shape[0], dtype=np.uint8)
+    hetero_data['map_polygon']['is_intersection'] = np.zeros(map_polylines.shape[0], dtype=np.uint8)
     
     # map polylines
     hetero_data['map_center'] = input_dict['map_center']
-    hetero_data['map_polylines']['position'] = input_dict['map_polylines'][..., 0:3]
-    hetero_data['map_polylines']['orientation'] = input_dict['map_polylines'][..., 3:6]
-    hetero_data['map_polylines']['lane_type'] = input_dict['map_polylines'][..., 9:29]
-    hetero_data['map_polylines']['mask'] = input_dict['map_polylines_mask']
-    hetero_data['map_polylines']['center'] = input_dict['map_polylines_center']
+    hetero_data['map_polylines']['position'] = map_polylines[..., 0:3]
+    hetero_data['map_polylines']['orientation'] = map_polylines[..., 3:6]
+    hetero_data['map_polylines']['lane_type'] = map_polylines[..., 9:29]
+    hetero_data['map_polylines']['mask'] = input_dict['map_polylines_mask'][polyline_mask]
+    hetero_data['map_polylines']['center'] = input_dict['map_polylines_center'][polyline_mask]
     
     # pt & pl indexing
-    num_polylines = map_polylines.shape[0]
-    num_points_per_polyline = map_polylines.shape[1] - 1
-    point_to_polygon_edge_index = np.stack([
-        np.arange(num_polylines * num_points_per_polyline, dtype=np.int64),
-        np.tile(np.arange(num_polylines, dtype=np.int64), num_points_per_polyline)
-    ], axis=0)
-    hetero_data['map_point', 'to', 'map_polygon']['edge_index'] = point_to_polygon_edge_index
-    
-    polygon_to_polygon_edge_index = []
-    for i in range(num_polylines - 1):
-        polygon_to_polygon_edge_index.append(np.array([[i, i+1], [i+1, i]]))
-    polygon_to_polygon_edge_index = np.concatenate(polygon_to_polygon_edge_index, axis=1) if polygon_to_polygon_edge_index else np.empty((2, 0), dtype=np.int64)
+    num_polylines, num_points_per_polyline = map_polylines.shape[0], map_polylines.shape[1] - 1
+    point_index = np.arange(num_polylines * num_points_per_polyline, dtype=np.int64)
+    polygon_index = np.repeat(np.arange(num_polylines, dtype=np.int64), num_points_per_polyline)
+    hetero_data['map_point', 'to', 'map_polygon']['edge_index'] = np.stack([point_index, polygon_index], axis=0)
     
     return [hetero_data]

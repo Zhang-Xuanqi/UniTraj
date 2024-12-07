@@ -420,6 +420,11 @@ def get_trajectory_type(output):
         data_sample["trajectory_type"] = trajectory_type
     return
 
+def wrap_angle(
+        angle: torch.Tensor,
+        min_val: float = -math.pi,
+        max_val: float = math.pi) -> torch.Tensor:
+    return min_val + (angle + max_val) % (max_val - min_val)
 
 class DynamicSampler(Sampler):
     def __init__(self, datasets):

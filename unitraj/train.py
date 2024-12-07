@@ -8,6 +8,7 @@ from models import build_model
 from datasets import build_dataset
 from utils.utils import set_seed, find_latest_checkpoint
 from pytorch_lightning.callbacks import ModelCheckpoint  # Import ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor
 import hydra
 from omegaconf import OmegaConf
 import os
@@ -30,13 +31,15 @@ def train(cfg):
     call_backs = []
 
     checkpoint_callback = ModelCheckpoint(
-        monitor='val/brier_fde',  # Replace with your validation metric
-        filename='{epoch}-{val/brier_fde:.2f}',
+        monitor='val_minFDE',  # Replace with your validation metric
+        filename='{epoch}-{val_minFDE:.2f}',
         save_top_k=1,
         mode='min',  # 'min' for loss/error, 'max' for accuracy
     )
 
     call_backs.append(checkpoint_callback)
+    lr_monitor = LearningRateMonitor(logging_interval='epoch')
+    call_backs.append(lr_monitor)
 
     train_loader = DataLoader(
         train_set, batch_size=train_batch_size, num_workers=cfg.load_num_workers, drop_last=False,
@@ -53,13 +56,17 @@ def train(cfg):
         gradient_clip_val=cfg.method.grad_clip_norm,
         accelerator="cpu" if cfg.debug else "gpu",
         profiler="simple",
-        strategy="auto" if cfg.debug else "ddp",
-        callbacks=call_backs
+        strategy="auto" if cfg.debug else "ddp_find_unused_parameters_true",
+        callbacks=call_backs,
     )
 
     # automatically resume training
-    if cfg.ckpt_path is None and not cfg.debug:
-        cfg.ckpt_path = find_latest_checkpoint(os.path.join('unitraj', cfg.exp_name, 'checkpoints'))
+    # if cfg.ckpt_path is None and not cfg.debug:
+    #     cfg.ckpt_path = find_latest_checkpoint(os.path.join('unitraj', cfg.exp_name, 'checkpoints'))
+    #     print("Found ckpt at " + os.path.join('unitraj', cfg.exp_name, 'checkpoints'))
+    #     print("Resume training from previous checkpoint file !!!!!!")
+    # else:
+    #     print("Training from scratch")
 
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=cfg.ckpt_path)
 

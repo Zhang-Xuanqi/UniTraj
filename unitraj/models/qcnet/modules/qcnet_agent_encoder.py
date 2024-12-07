@@ -67,7 +67,7 @@ class QCNetAgentEncoder(nn.Module):
             raise ValueError('{} is not a valid dataset'.format(dataset))
 
         if dataset == 'argoverse_v2':
-            self.type_a_emb = nn.Embedding(10, hidden_dim)
+            self.type_a_emb = nn.Embedding(5, hidden_dim)
         else:
             raise ValueError('{} is not a valid dataset'.format(dataset))
         self.x_a_emb = FourierEmbedding(input_dim=input_dim_x_a, hidden_dim=hidden_dim, num_freq_bands=num_freq_bands)

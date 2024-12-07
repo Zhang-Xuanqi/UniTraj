@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from losses.focal_loss import FocalLoss
-from losses.gaussian_nll_loss import GaussianNLLLoss
-from losses.laplace_nll_loss import LaplaceNLLLoss
-from losses.mixture_nll_loss import MixtureNLLLoss
-from losses.mixture_of_gaussian_nll_loss import MixtureOfGaussianNLLLoss
-from losses.mixture_of_laplace_nll_loss import MixtureOfLaplaceNLLLoss
-from losses.mixture_of_von_mises_nll_loss import MixtureOfVonMisesNLLLoss
-from losses.nll_loss import NLLLoss
-from losses.soft_target_cross_entropy_loss import SoftTargetCrossEntropyLoss
-from losses.von_mises_nll_loss import VonMisesNLLLoss
+from unitraj.models.qcnet.losses.focal_loss import FocalLoss
+from unitraj.models.qcnet.losses.gaussian_nll_loss import GaussianNLLLoss
+from unitraj.models.qcnet.losses.laplace_nll_loss import LaplaceNLLLoss
+from unitraj.models.qcnet.losses.mixture_nll_loss import MixtureNLLLoss
+from unitraj.models.qcnet.losses.mixture_of_gaussian_nll_loss import MixtureOfGaussianNLLLoss
+from unitraj.models.qcnet.losses.mixture_of_laplace_nll_loss import MixtureOfLaplaceNLLLoss
+from unitraj.models.qcnet.losses.mixture_of_von_mises_nll_loss import MixtureOfVonMisesNLLLoss
+from unitraj.models.qcnet.losses.nll_loss import NLLLoss
+from unitraj.models.qcnet.losses.soft_target_cross_entropy_loss import SoftTargetCrossEntropyLoss
+from unitraj.models.qcnet.losses.von_mises_nll_loss import VonMisesNLLLoss

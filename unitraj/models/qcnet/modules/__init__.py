@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from modules.qcnet_agent_encoder import QCNetAgentEncoder
-from modules.qcnet_decoder import QCNetDecoder
-from modules.qcnet_encoder import QCNetEncoder
-from modules.qcnet_map_encoder import QCNetMapEncoder
+from unitraj.models.qcnet.modules.qcnet_agent_encoder import QCNetAgentEncoder
+from unitraj.models.qcnet.modules.qcnet_decoder import QCNetDecoder
+from unitraj.models.qcnet.modules.qcnet_encoder import QCNetEncoder
+from unitraj.models.qcnet.modules.qcnet_map_encoder import QCNetMapEncoder

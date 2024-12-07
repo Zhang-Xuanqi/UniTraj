@@ -11,6 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from layers.attention_layer import AttentionLayer
-from layers.fourier_embedding import FourierEmbedding
-from layers.mlp_layer import MLPLayer
+from unitraj.models.qcnet.layers.attention_layer import AttentionLayer
+from unitraj.models.qcnet.layers.fourier_embedding import FourierEmbedding
+from unitraj.models.qcnet.layers.mlp_layer import MLPLayer

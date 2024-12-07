@@ -31,13 +31,12 @@ T_max: 64
 submission_dir: "./"
 submission_file_name: "submission"
 
-train_batch_size: 1
-val_batch_size: 1
-test_batch_size: 1
-# devices: [0]
+train_batch_size: 32
+val_batch_size: 32
+test_batch_size: 32
 
 # train
-max_epochs: 128
+max_epochs: 64
 learning_rate: 0.0001
 learning_rate_sched: [ 10, 20, 30, 40, 50 ]
 optimizer: AdamW
