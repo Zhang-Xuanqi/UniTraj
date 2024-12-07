@@ -142,9 +142,7 @@ def dict_to_heterodata(input_dict):
     
     # map polygons --> use polyline info instead
     hetero_data['map_polygon']['num_nodes'] = map_polylines.shape[0]
-    hetero_data['map_polygon']['position'] = np.mean(
-        map_polylines[..., 0:3], axis=1
-    )
+    hetero_data['map_polygon']['position'] = map_polylines[:, 0, 0:3]
     start_points = map_polylines[..., 0:3][:, 0, :2]
     second_points = map_polylines[..., 0:3][:, 1, :2]
     hetero_data['map_polygon']['orientation'] = np.arctan2(
