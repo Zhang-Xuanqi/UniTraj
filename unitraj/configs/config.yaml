@@ -1,19 +1,24 @@
 # exp setting
-exp_name: 'test' # name that will be used in wandb
+exp_name: 'smart_train' # name that will be used in wandb
 ckpt_path: null # checkpoint path, used for evaluation
 seed: 42 # random seed
-debug: True # debug mode, will use cpu only
+debug: False # debug mode, will use cpu only
 devices: [ 0 ] # gpu ids
+task: "sim_agent"
 
 # data related
-load_num_workers: 0 # number of workers for loading data
-train_data_path: [ "data_samples/nuscenes" ] # list of paths to the training data
-val_data_path: [ "data_samples/nuscenes" ] # list of paths to the validation data
-max_data_num: [ 1000 ] # maximum number of data for each training dataset
+load_num_workers: 1 # number of workers for loading data
+train_data_path: [ "/home/zxq/ws/unitraj_data/waymo/train" ]
+val_data_path: [ "/home/zxq/ws/unitraj_data/waymo/val" ]
+# train_data_path: [ "/home/zxq/ws/unitraj_data/waymo/train" ]
+# val_data_path: [ "/home/zxq/ws/unitraj_data/waymo/val" ]
+max_data_num: [ 1000000000, 1000000000, 1000000000 ] # maximum number of data for each training dataset
 starting_frame: [ 0 ] # history trajectory starts at this frame for each training dataset
-past_len: 21 # history trajectory length, 2.1s
-future_len: 60 # future trajectory length, 6s
-object_type: [ 'VEHICLE' ]#, 'PEDESTRIAN', 'CYCLIST'] # object types included in the training set
+# past_len: 11 # history trajectory length, 2.1s
+# future_len: 80 # future trajectory length, 6s
+past_len: 11
+future_len: 80
+object_type: [ 'VEHICLE' , 'PEDESTRIAN', 'CYCLIST'] # object types included in the training set
 line_type: [ 'lane','stop_sign','road_edge','road_line','crosswalk','speed_bump' ] # line type to be considered in the input
 masked_attributes: [ 'z_axis', 'size' ] # attributes to be masked in the input
 trajectory_sample_interval: 1 # sample interval for the trajectory
@@ -27,6 +32,8 @@ store_data_in_memory: False # store data in memory
 nuscenes_dataroot: '/mnt/nas3_rcp_enac_u0900_vita_scratch/datasets/Prediction-Dataset/nuscenes/nuscenes_root'
 eval_nuscenes: False # whether to evaluate with nuscenes evaluation tool
 eval_waymo: False # whether to evaluate with waymo evaluation tool
+eval_argoverse2: False
 
 defaults:
-  - method: autobot
+  - method: SMART
+  # - method: QCNet
