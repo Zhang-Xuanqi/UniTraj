@@ -63,6 +63,7 @@ class BaseDataset(Dataset):
                         shutil.rmtree(self.cache_path)
                     os.makedirs(self.cache_path, exist_ok=True)
                     process_num = os.cpu_count() - 1
+                    # process_num = 1
                     print('Using {} processes to load data...'.format(process_num))
 
                     data_splits = np.array_split(summary_list, process_num)
@@ -575,7 +576,7 @@ class BaseDataset(Dataset):
             center_heading=center_objects[:, 6],
             heading_index=6, rot_vel_index=[7, 8]
         )
-        obj_trajs_future_state = obj_trajs_future[:, :, :, [0, 1, 7, 8]]  # (x, y, vx, vy)
+        obj_trajs_future_state = obj_trajs_future[:, :, :, [0, 1, 3, 4, 5, 6, 7, 8]]  # (x, y, vx, vy)
         obj_trajs_future_mask = obj_trajs_future[:, :, :, -1]
         obj_trajs_future_state[obj_trajs_future_mask == 0] = 0
 
