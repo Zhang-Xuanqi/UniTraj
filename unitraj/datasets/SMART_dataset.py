@@ -6,7 +6,7 @@ import pandas as pd
 from torch_geometric.data import Dataset
 from unitraj.models.smart.utils.log import Logging
 import numpy as np
-from torch_geometric.data import HeteroData
+from torch_geometric.data import HeteroData, Batch
 from torch_geometric.loader.dataloader import Collater
 from torch_geometric.transforms import BaseTransform
 from unitraj.models.smart.datasets.preprocess import TokenProcessor
@@ -55,8 +55,8 @@ class SMARTDataset(BaseDataset):
             predict_mask[~valid_mask] = False
             agent['predict_mask'] = predict_mask
 
-            agent['type'] = np.zeros(agent['num_nodes'], dtype=np.uint8)
-            agent['category'] = np.argmax(i['obj_trajs'][:, 0, 6:11], axis=1)
+            agent['type'] = np.argmax(i['obj_trajs'][:, 0, 6:11], axis=1)
+            agent['category'] = np.zeros(agent['num_nodes'], dtype=np.uint8)
 
             agent['position'] = np.concatenate([i['obj_trajs_pos'], i['obj_trajs_future_state'][..., :3]], axis=1).astype(np.float32)
 
@@ -120,16 +120,28 @@ class SMARTDataset(BaseDataset):
         return data
     
     def collate_fn(self, data_list):
-        if isinstance(data_list[0], List):
-            data_list = data_list[0]
+        # if isinstance(data_list[0], List):
+        #     data_list = data_list[0]
         batch_size = len(data_list)
         merged_data = HeteroData()
         
         single_keys = ['scenario_id', 'kalman_difficulty', 'trajectory_type', 'center_objects_type']
         all_keys = ['map_save', 'pt_token', 'agent', 'map_point', 'map_polygon', ('map_point', 'to', 'map_polygon')]
-        sample = data_list[0]
+        sample = data_list[0][0]
         pt_offset = 0
         pl_offset = 0
+        for k in single_keys:
+            if k == 'scenario_id':
+                merged_data[k] = [data[0][k] for data in data_list]
+            elif k == 'kalman_difficulty':
+                merged_data[k] = torch.from_numpy(
+                    np.concatenate([data[0][k] for data in data_list], axis=0)
+                )
+            else:
+                merged_data[k] = torch.tensor(
+                    [data[0][k] for data in data_list]
+                )
+
         for key in all_keys:
             merged_data[key] = {}
             if key != ('map_point', 'to', 'map_polygon'):
@@ -138,16 +150,16 @@ class SMARTDataset(BaseDataset):
                         continue
                     try:
                         merged_data[key][sub_key] = torch.from_numpy(
-                                np.concatenate([data[key][sub_key] for data in data_list], axis=0)
+                                np.concatenate([data[0][key][sub_key] for data in data_list], axis=0)
                             )
                     except Exception as e:
                         merged_data[key][sub_key] = torch.tensor(
-                                [data[key][sub_key] for data in data_list]
+                                [data[0][key][sub_key] for data in data_list]
                         )
             else:
                 merged_edges = []
                 for data in data_list:
-                    edge_index = data[key]['edge_index']
+                    edge_index = data[0][key]['edge_index']
                     edge_index[0] += pt_offset
                     edge_index[1] += pl_offset
                     merged_edges.append(edge_index)
@@ -158,12 +170,12 @@ class SMARTDataset(BaseDataset):
                 )
             if key not in ['map_save', ('map_point', 'to', 'map_polygon')]:
                 ptr = torch.tensor([0])
-                num_nodes_list = [data[key]['num_nodes'] for data in data_list]
+                num_nodes_list = [data[0][key]['num_nodes'] for data in data_list]
                 ptr = torch.cat([ptr, torch.tensor(num_nodes_list, dtype=torch.int64)])
                 merged_data[key]['ptr'] = ptr
                 merged_data[key]['num_nodes'] = torch.tensor(sum(num_nodes_list))
                 merged_data[key]['batch'] = torch.arange(len(ptr)).repeat_interleave(ptr) 
-        return merged_data
+        return Batch.from_data_list([merged_data])
     
 class WaymoTargetBuilder(BaseTransform):
 
