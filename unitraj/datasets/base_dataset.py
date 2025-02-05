@@ -35,7 +35,7 @@ class BaseDataset(Dataset):
         self.data_chunk_size = 8
         self.load_data()
 
-    def load_data(self, sample_ratio=0.2):
+    def load_data(self, sample_ratio=None):
         self.data_loaded = {}
         if self.is_validation:
             print('Loading validation data...')
@@ -93,12 +93,14 @@ class BaseDataset(Dataset):
                         # randomly sample data_usage number of data
                         file_list = dict(data_list[:data_usage_this_dataset])
 
-            total_samples = len(file_list)
-            sampled_size = int(sample_ratio * total_samples)
-            sampled_keys = np.random.choice(list(file_list.keys()), sampled_size, replace=False)
-            print(f"Total samples before sampling: {total_samples * self.data_chunk_size}")
-            file_list = {key: file_list[key] for key in sampled_keys}
-            print(f"Total samples after sampling: {len(file_list) * self.data_chunk_size}")
+            if sample_ratio:
+                print(f"Sampling {sample_ratio} data")
+                total_samples = len(file_list)
+                sampled_size = int(sample_ratio * total_samples)
+                sampled_keys = np.random.choice(list(file_list.keys()), sampled_size, replace=False)
+                print(f"Total samples before sampling: {total_samples * self.data_chunk_size}")
+                file_list = {key: file_list[key] for key in sampled_keys}
+                print(f"Total samples after sampling: {len(file_list) * self.data_chunk_size}")
             print('Loaded {} samples from {}'.format(len(file_list) * self.data_chunk_size, data_path))
             self.data_loaded.update(file_list)
 

@@ -30,10 +30,10 @@ def train(cfg):
     call_backs = []
 
     checkpoint_callback = ModelCheckpoint(
-        monitor='val/brier_fde',  # Replace with your validation metric
-        filename='{epoch}-{val/brier_fde:.2f}',
+        monitor='val_cls_acc',  # Replace with your validation metric
+        filename='{epoch:02d}-{val_cls_acc:.2f}',
         save_top_k=1,
-        mode='min',  # 'min' for loss/error, 'max' for accuracy
+        mode='max',  # 'min' for loss/error, 'max' for accuracy
     )
 
     call_backs.append(checkpoint_callback)
@@ -53,8 +53,9 @@ def train(cfg):
         gradient_clip_val=cfg.method.grad_clip_norm,
         accelerator="cpu" if cfg.debug else "gpu",
         profiler="simple",
-        strategy="auto" if cfg.debug else "ddp",
-        callbacks=call_backs
+        strategy="auto" if cfg.debug else "ddp_find_unused_parameters_true",
+        callbacks=call_backs,
+        accumulate_grad_batches=cfg.method.Trainer.accumulate_grad_batches,
     )
 
     # automatically resume training
