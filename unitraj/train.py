@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from models import build_model
 from datasets import build_dataset
 from utils.utils import set_seed, find_latest_checkpoint
-from pytorch_lightning.callbacks import ModelCheckpoint  # Import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor  # Import ModelCheckpoint
 import hydra
 from omegaconf import OmegaConf
 import os
@@ -30,13 +30,16 @@ def train(cfg):
     call_backs = []
 
     checkpoint_callback = ModelCheckpoint(
-        monitor='val/brier_fde',  # Replace with your validation metric
-        filename='{epoch}-{val/brier_fde:.2f}',
+        dirpath=cfg.method.Trainer.save_ckpt_path,
+        monitor='val_cls_acc',  # Replace with your validation metric
+        filename='{epoch:02d}-{val_cls_acc:.2f}',
         save_top_k=1,
-        mode='min',  # 'min' for loss/error, 'max' for accuracy
+        mode='max',  # 'min' for loss/error, 'max' for accuracy
     )
 
     call_backs.append(checkpoint_callback)
+    lr_monitor = LearningRateMonitor(logging_interval='epoch')
+    call_backs.append(lr_monitor)
 
     train_loader = DataLoader(
         train_set, batch_size=train_batch_size, num_workers=cfg.load_num_workers, drop_last=False,
@@ -48,13 +51,15 @@ def train(cfg):
 
     trainer = pl.Trainer(
         max_epochs=cfg.method.max_epochs,
-        logger=None if cfg.debug else WandbLogger(project="unitraj", name=cfg.exp_name, id=cfg.exp_name),
+        logger=None if cfg.debug else WandbLogger(project=cfg.wandb_proj_name, name=cfg.exp_name, id=cfg.exp_name),
         devices=1 if cfg.debug else cfg.devices,
         gradient_clip_val=cfg.method.grad_clip_norm,
         accelerator="cpu" if cfg.debug else "gpu",
         profiler="simple",
-        strategy="auto" if cfg.debug else "ddp",
-        callbacks=call_backs
+        strategy="auto" if cfg.debug else "ddp_find_unused_parameters_true",
+        callbacks=call_backs,
+        num_sanity_val_steps=0,
+        accumulate_grad_batches=cfg.method.Trainer.accumulate_grad_batches,
     )
 
     # automatically resume training
