@@ -1,13 +1,14 @@
 import os
 import pickle
 import torch
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import Callable, List, Optional, Tuple, Union
 import pandas as pd
 from torch_geometric.data import Dataset
 from unitraj.models.smart.utils.log import Logging
 import numpy as np
 from torch_geometric.data import HeteroData, Batch
+from torch_geometric.data.storage import NodeStorage
 from torch_geometric.loader.dataloader import Collater
 from torch_geometric.transforms import BaseTransform
 from unitraj.models.smart.datasets.preprocess import TokenProcessor
@@ -17,11 +18,12 @@ from scenarionet.common_utils import read_scenario
 from unitraj.datasets.common_utils import get_polyline_dir, find_true_segments, generate_mask, is_ddp, \
     get_kalman_difficulty, get_trajectory_type, interpolate_polyline
 from unitraj.models.smart.utils import wrap_angle, get_drivable_area_tree, get_drivable_area_convex
-from unitraj.datasets.types import object_type, polyline_type
+from unitraj.datasets.types import object_type, polyline_type, traffic_light_state_to_int
 
 default_value = 0
 object_type = defaultdict(lambda: default_value, object_type)
 polyline_type = defaultdict(lambda: default_value, polyline_type)
+traffic_light_state_to_int = defaultdict(lambda: default_value, traffic_light_state_to_int)
 
 class SMARTDataset(BaseDataset):
 
@@ -29,6 +31,7 @@ class SMARTDataset(BaseDataset):
         self.token_processor = TokenProcessor(2048)
         self.target_transform = WaymoTargetBuilder(11, 80)
         self.scene_centric = True
+        # self.scene_centric = False
         super().__init__(config, is_validation)
         self.logger = Logging().log(level='DEBUG')
         
@@ -152,6 +155,12 @@ class SMARTDataset(BaseDataset):
 
             cur_info = {'id': k}
             cur_info['type'] = v['type']
+            if k in traffic_lights.keys():
+                cur_info['light_type'] = traffic_light_state_to_int[
+                    Counter(traffic_lights[k]['state']['object_state']).most_common(1)[0][0]
+                ]
+            else:
+                cur_info['light_type'] = traffic_light_state_to_int[None]
             if polyline_type_ in [1, 2, 3]:
                 cur_info['speed_limit_mph'] = v.get('speed_limit_mph', None)
                 cur_info['interpolating'] = v.get('interpolating', None)
@@ -204,9 +213,11 @@ class SMARTDataset(BaseDataset):
                 cur_polyline_dir = get_polyline_dir(polyline)
                 type_array = np.zeros([polyline.shape[0], 1])
                 type_array[:] = polyline_type_
-                cur_polyline = np.concatenate((polyline, cur_polyline_dir, type_array), axis=-1)
+                light_array = np.zeros([polyline.shape[0], 1])
+                type_array[:] = cur_info['light_type']
+                cur_polyline = np.concatenate((polyline, cur_polyline_dir, light_array, type_array), axis=-1)
             except:
-                cur_polyline = np.zeros((0, 7), dtype=np.float32)
+                cur_polyline = np.zeros((0, 8), dtype=np.float32)
             polylines.append(cur_polyline)
             cur_info['polyline_index'] = (point_cnt, point_cnt + len(cur_polyline))
             point_cnt += len(cur_polyline)
@@ -214,7 +225,7 @@ class SMARTDataset(BaseDataset):
         try:
             polylines = np.concatenate(polylines, axis=0).astype(np.float32)
         except:
-            polylines = np.zeros((0, 7), dtype=np.float32)
+            polylines = np.zeros((0, 8), dtype=np.float32)
         map_infos['all_polylines'] = polylines
 
         dynamic_map_infos = {
@@ -350,7 +361,7 @@ class SMARTDataset(BaseDataset):
             )
 
         if info['map_infos']['all_polylines'].__len__() == 0:
-            info['map_infos']['all_polylines'] = np.zeros((2, 7), dtype=np.float32)
+            info['map_infos']['all_polylines'] = np.zeros((2, 8), dtype=np.float32)
             print(f'Warning: empty HDMap {scene_id}')
 
         if self.config.manually_split_lane:
@@ -508,7 +519,7 @@ class SMARTDataset(BaseDataset):
                     segment_index_list.append(find_true_segments(in_range_mask[i]))
                 max_segments = max([len(x) for x in segment_index_list])
 
-                segment_list = np.zeros([num_agents, max_segments, max_points_per_lane, 7], dtype=np.float32)
+                segment_list = np.zeros([num_agents, max_segments, max_points_per_lane, 8], dtype=np.float32)
                 segment_mask_list = np.zeros([num_agents, max_segments, max_points_per_lane], dtype=np.int32)
 
                 for i in range(polyline_segment.shape[0]):
@@ -528,7 +539,7 @@ class SMARTDataset(BaseDataset):
 
                 polyline_list.append(segment_list)
                 polyline_mask_list.append(segment_mask_list)
-        if len(polyline_list) == 0: return np.zeros((num_agents, 0, max_points_per_lane, 7)), np.zeros(
+        if len(polyline_list) == 0: return np.zeros((num_agents, 0, max_points_per_lane, 8)), np.zeros(
             (num_agents, 0, max_points_per_lane))
         batch_polylines = np.concatenate(polyline_list, axis=1)
         batch_polylines_mask = np.concatenate(polyline_mask_list, axis=1)
@@ -538,13 +549,16 @@ class SMARTDataset(BaseDataset):
         xy_pos_pre = map_polylines[:, :, :, 0:3]
         xy_pos_pre = np.roll(xy_pos_pre, shift=1, axis=-2)
         xy_pos_pre[:, :, 0, :] = xy_pos_pre[:, :, 1, :]
+        
+        light_types = map_polylines[:, :, :, -2]
+        light_types = np.eye(9)[light_types.astype(int)] # use 9 for light types
 
         map_types = map_polylines[:, :, :, -1]
-        map_polylines = map_polylines[:, :, :, :-1]
+        map_polylines = map_polylines[:, :, :, :-2]
         # one-hot encoding for map types, 14 types in total, use 20 for reserved types
         map_types = np.eye(20)[map_types.astype(int)]
 
-        map_polylines = np.concatenate((map_polylines, xy_pos_pre, map_types), axis=-1)
+        map_polylines = np.concatenate((map_polylines, xy_pos_pre, light_types, map_types), axis=-1)
         map_polylines[map_polylines_mask == 0] = 0
 
         return map_polylines, map_polylines_mask
@@ -609,6 +623,7 @@ class SMARTDataset(BaseDataset):
             agent['predict_mask'] = predict_mask
 
             agent['type'] = np.argmax(i['obj_trajs'][:, 0, 6:11], axis=1)
+            # agent['type'] = np.array([self.custom_argmax(row) for row in i['obj_trajs'][:, 0, 6:11]])
             agent['category'] = np.zeros(agent['num_nodes'], dtype=np.uint8)
 
             agent['position'] = np.concatenate([i['obj_trajs_pos'], i['obj_trajs_future_state'][..., :3]], axis=1).astype(np.float32)
@@ -627,14 +642,16 @@ class SMARTDataset(BaseDataset):
                 agent['center_objects_world'] = i['center_objects_world'].reshape(1, -1).astype(np.float32)
             
             agent['shape'] = np.concatenate([i['obj_trajs'][..., 3:6], i['obj_trajs_future_state'][..., 2:5]], axis=1).astype(np.float32)
-            d['agent'] = agent
+            d['agent'] = NodeStorage(agent)
 
             d['map_polygon'] = {}
             map_polylines = i['map_polylines']
             polyline_mask = ~np.all(map_polylines == 0, axis=(1, 2))
             map_polylines = map_polylines[polyline_mask]
             d['map_polygon']['num_nodes'] = map_polylines.shape[0]
-            d['map_polygon']['type'] = np.argmax(map_polylines[:, 0, 9:29], axis=-1)
+            d['map_polygon']['light_type'] = np.argmax(map_polylines[:, 0, 9:18], axis=-1)
+            d['map_polygon']['type'] = np.argmax(map_polylines[:, 0, 17:-1], axis=-1)
+            d['map_polygon'] = NodeStorage(d['map_polygon'])
 
             d['map_point'] = {}
             d['map_point']['drivable'] = get_drivable_area_convex(map_polylines)
@@ -658,6 +675,7 @@ class SMARTDataset(BaseDataset):
             d['map_point']['type'] = np.argmax(
                 pl_type_one_hot_first, axis=-1
             ).reshape(-1)[pt_valid_mask]
+            d['map_point'] = NodeStorage(d['map_point'])
 
             num_polylines, num_points_per_polyline = map_polylines.shape[0], map_polylines.shape[1] - 1
             point_index = np.arange(num_polylines * num_points_per_polyline, dtype=np.int64)
@@ -666,7 +684,7 @@ class SMARTDataset(BaseDataset):
             valid_polygon_index = polygon_index[pt_valid_mask]
             new_point_index = np.arange(valid_point_index.shape[0], dtype=np.int64)
             edge_index = np.stack([new_point_index, valid_polygon_index], axis=0)
-            d['map_point', 'to', 'map_polygon'] = {'edge_index': edge_index}
+            d['map_point', 'to', 'map_polygon'] = NodeStorage({'edge_index': edge_index})
             if i.get('center_objects_type'):
                 d['center_objects_type'] = i['center_objects_type']
             
@@ -737,6 +755,16 @@ class SMARTDataset(BaseDataset):
                 merged_data[key]['num_nodes'] = torch.tensor(sum(num_nodes_list))
                 merged_data[key]['batch'] = torch.arange(len(ptr)).repeat_interleave(ptr) 
         return Batch.from_data_list([merged_data])
+    
+    def custom_argmax(self, row):
+        reversed_row = row[::-1]
+        max_val = np.max(row)
+        if max_val == 0:
+            return 0
+        else:
+            last_idx_reversed = reversed_row.argmax()
+            original_idx = len(row) - last_idx_reversed - 1
+            return original_idx + 1
     
 class WaymoTargetBuilder(BaseTransform):
 
